@@ -52,8 +52,6 @@ def main():
     conf.logging_path = join(global_path, './logs', conf.time_id)
     conf.writting_path = join(conf.logging_path, './logging')
 
-
-
     # configure checkpoint for images and models.
     conf.image_directory = join(
         conf.logging_path, conf.IMAGE_SAVING_DIRECTORY)
@@ -86,9 +84,9 @@ def loading_data(conf):
     print("Loading dataset....")
     # Dataset = AWA_Dataset(join(conf.global_path, conf.DATA_ROOT))
     transformation = torchvision.transforms.Compose(
-                    [transforms.Resize(64),
-                     transforms.ToTensor(),
-                     transforms.Normalize(mean=[0.5] * 3, std=[0.5] * 3)])
+        [transforms.Resize(64),
+         transforms.ToTensor(),
+         transforms.Normalize(mean=[0.5] * 3, std=[0.5] * 3)])
     Dataset = torchvision.datasets.CIFAR10('./dataset/cifar10', train=True,
                                            transform=transformation,
                                            download=True)
@@ -124,10 +122,10 @@ def init_models(conf):
     # Setup the optimizers
     print("Optimization Setup.......")
     GeneratorOptimizor = torch.optim.Adam(
-            Generator_Model.parameters(), lr=conf.lr, betas=(0.5, 0.999))
+        Generator_Model.parameters(), lr=conf.lr, betas=(0.5, 0.999))
 
     DiscriminatorOptimizor = torch.optim.Adam(
-            Discriminator_Model.parameters(), lr=conf.lr, betas=(0.5, 0.999))
+        Discriminator_Model.parameters(), lr=conf.lr, betas=(0.5, 0.999))
 
     optimizer = GeneratorOptimizor, DiscriminatorOptimizor
 
@@ -159,7 +157,7 @@ def train(conf):
         # Loss visulization Variable
         conf.Dis_Loss, conf.Gen_Loss = 0, 0
 
-        for it, (image, _) in  enumerate(train_loader):
+        for it, (image, _) in enumerate(train_loader):
             Generator_Model.train()
             if image.size(0) != conf.batch_size:
                 continue
@@ -174,12 +172,11 @@ def train(conf):
                                             Discriminator_Model,
                                             DiscriminatorOptimizor,
                                             fix_noise)
-            if (it+1) % 1 == 0:
+            if (it + 1) % 1 == 0:
                 print("Epoch: (%3d) (%5d/%5d)" % (epoch, it + 1, len(train_loader)))
 
             if stop_flag:
                 return
-
 
 
 def train_one_iteration(conf, epoch, it, image,
@@ -200,15 +197,15 @@ def train_one_iteration(conf, epoch, it, image,
 
     # Generator Update
     if conf.iterations % conf.n_critic == 0:
-            gen_update(conf, Generator_Model, Discriminator_Model,
-                       image, GeneratorOptimizor, DiscriminatorOptimizor)
+        gen_update(conf, Generator_Model, Discriminator_Model,
+                   image, GeneratorOptimizor, DiscriminatorOptimizor)
 
-    if (conf.iterations+1) % 100 == 0:
+    if (conf.iterations + 1) % 100 == 0:
         Generator_Model.eval()
         gen_image = Generator_Model(fix_noise)
         # Save the output images
-        img_name = conf.image_directory + "/gen_image_"+str(conf.iterations+1)+".jpg"
-        torchvision.utils.save_image((gen_image.data + 1)/2, img_name)
+        img_name = conf.image_directory + "/gen_image_" + str(conf.iterations + 1) + ".jpg"
+        torchvision.utils.save_image((gen_image.data + 1) / 2, img_name)
         # # Save the input images
         # img_name = conf.image_directory + "/input_image.jpg"
         # torchvision.utils.save_image((image.data), img_name)
@@ -286,8 +283,8 @@ def gen_update(conf, Generator_Model, Discriminator_Model,
     GeneratorOptimizor.step()
 
     conf.writer.add_scalars('G',
-                       {"g_loss": gen_loss.data.cpu().numpy()},
-                        global_step=conf.iterations)
+                            {"g_loss": gen_loss.data.cpu().numpy()},
+                            global_step=conf.iterations)
 
 
 # Gradient Penalty Calculation
@@ -301,9 +298,10 @@ def gradient_penalty(x, y, f):
     z = Variable(z, requires_grad=True).cuda()
     o = f(z)
     g = grad(o, z, grad_outputs=torch.ones(o.size()).cuda(), create_graph=True)[0].view(z.size(0), -1)
-    gp = ((g.norm(p=2, dim=1) - 1)**2).mean()
+    gp = ((g.norm(p=2, dim=1) - 1) ** 2).mean()
 
     return gp
+
 
 # Main Running control
 if __name__ == '__main__':
