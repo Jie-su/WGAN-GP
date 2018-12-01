@@ -8,14 +8,11 @@ import torchvision
 from torchvision import transforms
 from torch.autograd import Variable
 from torch.autograd import grad
-import PIL.Image as Image
 
 import os
 from os.path import join
 import argparse
-from tqdm import tqdm
 import tensorboardX
-from optparse import OptionParser
 
 # Parameter setting
 parser = argparse.ArgumentParser(description='A2I Training')
@@ -36,13 +33,15 @@ parser.add_argument('--resume', default=0, type=int, metavar='check',
                     help='0 set as no resume and 1 set as resume')
 parser.add_argument('--n_critic', default=5, type=int, metavar='NC',
                     help='number of critic training', dest='number_critic')
+parser.add_argument('--gp-lambda', default=5, type=int, metavar='gp',
+                    help='weight of gradient penalty', dest='gp_lambda')
 
 
-# Mian control script
+# Main control script
 def main():
     args = parser.parse_args()
 
-    # initializ gloabl path
+    # initialize global path
     global_path = os.path.dirname(os.path.realpath(__file__))
     conf.global_path = global_path
     print('the global path: '.format(global_path))
@@ -75,6 +74,8 @@ def main():
     print('max number of iterations: {}'.format(conf.max_iterations))
     conf.n_critic = args.number_critic
     print('number of critic training: {}'.format(conf.n_critic))
+    conf.gp_lambda = args.gp_lambda
+    print('gradient penalty weight: {}'.format(conf.gp_lambda))
 
     train(conf)
 
@@ -151,11 +152,7 @@ def train(conf):
     print("Begin Training Process........\n")
 
     for epoch in range(0, conf.max_epochs):
-        print("Epoch {}\n".format(epoch))
         Discriminator_Model.train()
-
-        # Loss visulization Variable
-        conf.Dis_Loss, conf.Gen_Loss = 0, 0
 
         for it, (image, _) in enumerate(train_loader):
             Generator_Model.train()
@@ -166,7 +163,7 @@ def train(conf):
             if conf.iterations >= conf.max_iterations:
                 return
 
-            stop_flag = train_one_iteration(conf, epoch, it, image,
+            stop_flag = train_one_iteration(conf, image,
                                             Generator_Model,
                                             GeneratorOptimizor,
                                             Discriminator_Model,
@@ -179,8 +176,7 @@ def train(conf):
                 return
 
 
-def train_one_iteration(conf, epoch, it, image,
-                        Generator_Model, GeneratorOptimizor,
+def train_one_iteration(conf, image, Generator_Model, GeneratorOptimizor,
                         Discriminator_Model,
                         DiscriminatorOptimizor, fix_noise):
     # Copy data to the gpu
@@ -198,7 +194,7 @@ def train_one_iteration(conf, epoch, it, image,
     # Generator Update
     if conf.iterations % conf.n_critic == 0:
         gen_update(conf, Generator_Model, Discriminator_Model,
-                   image, GeneratorOptimizor, DiscriminatorOptimizor)
+                   GeneratorOptimizor, DiscriminatorOptimizor)
 
     if (conf.iterations + 1) % 100 == 0:
         Generator_Model.eval()
@@ -240,7 +236,7 @@ def dis_update(conf, Generator_Model, Discriminator_Model,
                                  output.data,
                                  Discriminator_Model)
 
-    dis_loss = -w_distance + g_penalty * 10.0
+    dis_loss = -w_distance + g_penalty * conf.gp_lambda
 
     # loss backprobagation
     dis_loss.backward(retain_graph=True)
@@ -255,7 +251,7 @@ def dis_update(conf, Generator_Model, Discriminator_Model,
 
 # Generator update
 def gen_update(conf, Generator_Model, Discriminator_Model,
-               image, GeneratorOptimizor, DiscriminatorOptimizor):
+               GeneratorOptimizor, DiscriminatorOptimizor):
     # Generator Update function
     # Optimizor setup
     GeneratorOptimizor.zero_grad()
@@ -291,13 +287,22 @@ def gen_update(conf, Generator_Model, Discriminator_Model,
 def gradient_penalty(x, y, f):
     # interpolation
     shape = [x.size(0)] + [1] * (x.dim() - 1)
-    alpha = torch.rand(shape).cuda()
+    if torch.cuda.is_available():
+        alpha = torch.rand(shape).cuda()
+    else:
+        alpha = torch.rand(shape)
     z = x + alpha * (y - x)
 
     # gradient penalty
-    z = Variable(z, requires_grad=True).cuda()
+    if torch.cuda.is_available():
+        z = Variable(z, requires_grad=True).cuda()
+    else:
+        z = Variable(z, requires_grad=True)
     o = f(z)
-    g = grad(o, z, grad_outputs=torch.ones(o.size()).cuda(), create_graph=True)[0].view(z.size(0), -1)
+    if torch.cuda.is_available():
+        g = grad(o, z, grad_outputs=torch.ones(o.size()).cuda(), create_graph=True)[0].view(z.size(0), -1)
+    else:
+        g = grad(o, z, grad_outputs=torch.ones(o.size()), create_graph=True)[0].view(z.size(0), -1)
     gp = ((g.norm(p=2, dim=1) - 1) ** 2).mean()
 
     return gp
