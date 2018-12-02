@@ -15,7 +15,7 @@ import argparse
 import tensorboardX
 
 # Parameter setting
-parser = argparse.ArgumentParser(description='A2I Training')
+parser = argparse.ArgumentParser(description='WGAN-GP Training')
 parser.add_argument('--workers', default=0, type=int, metavar='N',
                     help='number of data loading workers (default: 0)')
 parser.add_argument('--epochs', default=conf.NUM_EPOCHS, type=int, metavar='N',
