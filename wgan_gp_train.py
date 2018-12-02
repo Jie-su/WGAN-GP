@@ -33,7 +33,7 @@ parser.add_argument('--resume', default=0, type=int, metavar='check',
                     help='0 set as no resume and 1 set as resume')
 parser.add_argument('--n_critic', default=5, type=int, metavar='NC',
                     help='number of critic training', dest='number_critic')
-parser.add_argument('--gp-lambda', default=5, type=int, metavar='gp',
+parser.add_argument('--gp-lambda', default=10, type=int, metavar='gp',
                     help='weight of gradient penalty', dest='gp_lambda')
 
 
